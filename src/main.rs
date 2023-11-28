@@ -1,5 +1,5 @@
 use actix_web::{App, HttpResponse, HttpServer, Responder, web};
-use actix_web::web::Path;
+use actix_web::web::{Json, Path};
 use serde::{Deserialize, Serialize};
 
 
@@ -23,6 +23,11 @@ struct Todo {
     id: i64,
     title: String,
     is_completed: bool,
+}
+
+#[derive(Deserialize)]
+struct NewTodo {
+    title: String,
 }
 
 struct AppState {
@@ -96,6 +101,17 @@ async fn todo_list(app_data: web::Data<AppState>) -> impl Responder {
         .body(serialized)
 }
 
-async fn todo_create() -> String {
-    "todo_create".to_string()
+async fn todo_create(app_data: web::Data<AppState>, todo_input: Json<NewTodo>) -> impl Responder {
+    let mut todos = app_data.todos.write().unwrap();
+    let max_id = todos.iter().max_by_key(|t| { t.id }).unwrap().id;
+    let new_todo = Todo {
+        id: max_id + 1,
+        title: todo_input.title.clone(),
+        is_completed: false,
+    };
+    todos.push(new_todo.clone());
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string(&TodoResponse { todo: new_todo.clone() }).unwrap())
 }

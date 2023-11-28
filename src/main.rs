@@ -2,7 +2,6 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use actix_web::web::{Json, Path};
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Deserialize)]
 struct EntityId {
     id: i64,
@@ -18,6 +17,11 @@ struct TodosResponse {
     todos: Vec<Todo>,
 }
 
+#[derive(Serialize)]
+struct SuccessResponse {
+    success: bool,
+}
+
 #[derive(Clone, Serialize)]
 struct Todo {
     id: i64,
@@ -30,10 +34,15 @@ struct NewTodo {
     title: String,
 }
 
+#[derive(Deserialize, Serialize)]
+struct UpdateTodo {
+    title: Option<String>,
+    is_completed: Option<bool>,
+}
+
 struct AppState {
     todos: std::sync::RwLock<Vec<Todo>>,
 }
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -82,8 +91,30 @@ async fn todo_detail(app_data: web::Data<AppState>, params: Path<EntityId>) -> i
         .body(serialized)
 }
 
-async fn todo_update() -> String {
-    "todo_update".to_string()
+async fn todo_update(app_data: web::Data<AppState>, params: Path<EntityId>, todo_input: Json<UpdateTodo>) -> impl Responder {
+    let mut todos = app_data.todos.write().unwrap();
+    let mut update_todo = todos.iter().find(|t| t.id == params.id).unwrap().clone();
+
+    match &todo_input.title {
+        Some(title) => {
+            update_todo.title = title.clone();
+        }
+        _ => {}
+    };
+    match &todo_input.is_completed {
+        Some(is_completed) => {
+            update_todo.is_completed = is_completed.clone();
+        }
+        _ => {}
+    };
+
+    let current_index = todos.iter().position(|t| { t.id == params.id }).unwrap();
+    todos.remove(current_index);
+    todos.push(update_todo.clone());
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string(&SuccessResponse { success: true }).unwrap())
 }
 
 async fn todo_delete() -> String {

@@ -117,8 +117,14 @@ async fn todo_update(app_data: web::Data<AppState>, params: Path<EntityId>, todo
         .body(serde_json::to_string(&SuccessResponse { success: true }).unwrap())
 }
 
-async fn todo_delete() -> String {
-    "todo_delete".to_string()
+async fn todo_delete(app_data: web::Data<AppState>, params: Path<EntityId>) -> impl Responder {
+    let mut todos = app_data.todos.write().unwrap();
+    let current_index = todos.iter().position(|t| { t.id == params.id }).unwrap();
+    todos.remove(current_index);
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string(&SuccessResponse { success: true }).unwrap())
 }
 
 async fn todo_list(app_data: web::Data<AppState>) -> impl Responder {

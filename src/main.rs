@@ -1,9 +1,21 @@
 use actix_web::{App, HttpResponse, HttpServer, Responder, web};
-use serde::Serialize;
+use actix_web::web::Path;
+use serde::{Deserialize, Serialize};
+
+
+#[derive(Deserialize)]
+struct EntityId {
+    id: i64,
+}
+
+#[derive(Serialize)]
+struct TodoResponse {
+    todo: Todo,
+}
 
 #[derive(Serialize)]
 struct TodosResponse {
-    todos: Vec<Todo>
+    todos: Vec<Todo>,
 }
 
 #[derive(Clone, Serialize)]
@@ -14,7 +26,7 @@ struct Todo {
 }
 
 struct AppState {
-    todos: std::sync::RwLock<Vec<Todo>>
+    todos: std::sync::RwLock<Vec<Todo>>,
 }
 
 
@@ -54,8 +66,15 @@ async fn main() -> std::io::Result<()> {
         .await
 }
 
-async fn todo_detail() -> String {
-    "todo_detail".to_string()
+async fn todo_detail(app_data: web::Data<AppState>, params: Path<EntityId>) -> impl Responder {
+    let todos = app_data.todos.read().unwrap().clone();
+    let todo = todos.iter().find(|t| t.id == params.id).unwrap().clone();
+    let response = TodoResponse { todo };
+    let serialized = serde_json::to_string(&response).unwrap();
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serialized)
 }
 
 async fn todo_update() -> String {
